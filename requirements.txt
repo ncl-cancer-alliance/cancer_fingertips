@@ -1,0 +1,49 @@
+# For python projects only to set up venv
+# Do not use packages outside of safelist. Speak to head of data science and have package added to safe list
+# The libraries used by your code should be listed here
+# See https://nhsd-git.digital.nhs.uk/data-services/analytics-service/iuod/rap-community-of-practice/-/blob/master/python/project-structure-and-packaging.md
+
+# Python version = 3.12.*
+
+# Snowflake packages
+aiobotocore==2.23.0
+fsspec==2025.7.0
+snowflake==1.6.0
+snowflake-connector-python==3.16.0
+snowflake-snowpark-python==1.34.0
+snowflake-ml-python==1.8.6
+snowflake._legacy==1.0.1
+snowflake.core==1.6.0
+
+# Data manipulation
+numpy==1.26.4
+pandas==2.3.1
+
+# Data visualisation
+# plotly == 6.0.1
+# matplotlib == 3.10.1
+# great-tables == 0.17.0
+
+# Interface
+# streamlit == 1.44.1
+# dash == 3.0.2
+
+# SQL connections
+pyodbc==5.2.0
+sqlalchemy==2.0.40
+
+# Excel output
+openpyxl==3.1.5
+
+# Testing
+# pytest==8.3.5
+
+# Requests
+# beautifulsoup4==4.13.3
+# requests==2.32.4
+
+# Environment variables
+python-dotenv==1.1.0
+toml==0.10.2
+
+# Dependencies

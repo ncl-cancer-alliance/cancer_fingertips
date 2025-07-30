@@ -1,0 +1,5 @@
+title = "MY PROJECT"
+
+[database]
+sql_dsn = "SANDPIT"
+sql_database = "Data_Lab_NCL_Dev"
