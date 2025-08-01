@@ -1,56 +1,45 @@
-# NCL Cancer Alliance Project Template
+# NCL Cancer Alliance - Fingertips Ingestion
 
-This git repository contains a shell that should be used as the default structure for new projects
-in the analytical team.  It won't fit all circumstances perfectly, and you can make changes and issue a 
-pull request for new features / changes.
+Ingestion pipeline to pull select fingertips data into snowflake.
 
-The aim of this template is two-fold: firstly to give a common structure for analytical projects to aid
-reproducibility, secondly to allow for additional security settings as default to prevent accidental upload of files that should not be committed to Git and GitHub.
+The pipeline maintains 3 bronze tier tables:
+- CANCER_FINGERTIPS: Indicator data
+- INDICATOR_METADATA: Metadata information on indicators
+- INDICATOR_UPDATE_LOG: Local tracking of what data has been ingested
 
-__Please update/replace this README file with one relevant to your project__
+This project uses the [fingertips-py package](https://fingertips-py.readthedocs.io/en/latest/) to pull data and outputs data in the format used by `fingertips_py.get_data_for_indicator_at_all_available_geographies(id)`.
 
-## To use this template, please use the following practises:
+The output indicator data is also appended with the "Date updated" field from the indicator metadata in order to track what version of the data exists in Snowflake.
 
-* Put any data files in the `data` folder.  This folder is explicitly named in the .gitignore file.  A further layer of security is that all xls, xlsx, csv and pdf files are also explicit ignored in the whole folder as well.  ___If you need to commit one of these files, you must use the `-f` (force) command in `commit`, but you must be sure there is no identifiable data.__
-* Save any documentation in the `docs` file.  This does not mean you should avoid commenting your code, but if you have an operating procedure or supporting documents, add them to this folder.
-* Please save all output: data, formatted tables, graphs etc. in the output folder.  This is also implicitly ignored by git, but you can use the `-f` (force) command in `commit` to add any you wish to publish to github.
-
-
-### Please also consider the following:
-* Linting your code.  This is a formatting process that follows a rule set.  We broadly encourage the tidyverse standard, and recommend the `lintr` package.
-* Comment your code to make sure others can follow.
-* Consider your naming conventions: we recommend `snake case` where spaces are replaced by underscores and no capitals are use. E.g. `outpatient_referral_data`
-
-
-This repository is dual licensed under the [Open Government v3]([https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/) & MIT. All code can outputs are subject to Crown Copyright.
+The INDICATOR_METADATA table is sourced using the `fingertips_py.get_metadata_for_all_indicators_from_csv()` function.
 
 ## Scripting Guidance
 
-Please refer to the Internal Scripting Guide documentation for instructions on setting up coding projects including virtual environments (venv).
+Please refer to the Internal Scripting Guide documentation for instructions on setting up coding projects including virtual environments (venv) and environmental variables (.env).
 
 The Internal Scripting Guide is available here: [Internal Scripting Guide](https://nhs.sharepoint.com/:w:/r/sites/msteams_38dd8f/Shared%20Documents/Document%20Library/Documents/Git%20Integration/Internal%20Scripting%20Guide.docx?d=wc124f806fcd8401b8d8e051ce9daab87&csf=1&web=1&e=qt05xI)
 
+## Usage
+
+### First Time Setup
+
+* Follow the guide for "Setting up a New Coding Project" in the [Internal Scripting Guide](https://nhs.sharepoint.com/:w:/r/sites/msteams_38dd8f/Shared%20Documents/Document%20Library/Documents/Git%20Integration/Internal%20Scripting%20Guide.docx?d=wc124f806fcd8401b8d8e051ce9daab87&csf=1&web=1&e=qt05xI) and set up the Virtual Environment.
+
+* Create a .env file using the sample.env as a reference. Use the Internal Scripting Guide for further guidance. The ACCOUNT, USER, and ROLE fields need to be populated using information from your Snowflake account.
+
+### Regular Use
+
+* Set the INDICATORS field in the .env file to the list of indicators you want to pull data for. If all destination tables are set up as expected, the code will only pull data for indicators where there is new data not currently logged in the INDICATOR_UPDATE_LOG.
+
+* Execute src/main.py
+
+When executed the code will fully refresh the INDICATOR_METADATA table with the latest available.
+
 ## Changelog
 
-### [1.0.0] - 2025-04-08
+### [1.0.0] - 2025-08-01
 #### Added
-- Initial release of the project template
-
-### [1.1.0] - 2025-05-15
-#### Added
-- Added sample.env file to the template
-#### Modified
-- Added toml to requirements.txt file
-
-### [1.1.1] - 2025-05-28
-#### Modified
-- References to the NCL ICB scripting documentation have been replaced with the internal documentation.
-
-### [1.2.0] - 2025-07-17
-#### Added
-- Updated requirements.txt to better support snowflake packages
-
-*The contents and structure of this template were largely based on the template used by the NCL ICB Analytics team available here: [NCL ICB Project Template](https://github.com/ncl-icb-analytics/ncl_project)*
+- Initial working version of the project.
 
 ## Licence
 This repository is dual licensed under the [Open Government v3]([https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/) & MIT. All code can outputs are subject to Crown Copyright.
