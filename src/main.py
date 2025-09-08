@@ -65,24 +65,22 @@ def upload_df(ctx, df, destination, replace=False):
     
     return success
 
-def update_meta_live(ctx, df_meta):
+def update_meta_live(ctx, df_meta, destination_table):
 
     """
-    Upload (replace) the existing table that contains metadata for all indicators
+    Upload (replace) the existing tables containing online metadata
+    (e.g. Indicator metadata, Area metadata)
 
     inputs:
     - ctx: Snowflake connection object 
     (https://docs.snowflake.com/en/developer-guide/python-connector/python-connector-connect)
-    - df_meta: Dataframe object 
-    (sourced using fingertips_py.get_metadata_for_all_indicators_from_csv(),
-    I made this a function input instead of pulling the data in the function to 
-    avoid pulling it multiple times in the code since it's used elsewhere)
+    - df_meta: Dataframe object containing metadata
+    - destination_table: Table name for the destination
     """
     
     #Get destination table
     database = getenv("DATABASE") 
     schema = getenv("SCHEMA") 
-    destination_table = getenv("DESTINATION_TABLE_META")
     destination = f"{database}.{schema}.{destination_table}"
 
     success = upload_df(ctx, df_meta, destination, replace=True)
@@ -120,7 +118,9 @@ def get_local_meta(ctx):
 
     query = load_query("get_indicator_update_log.sql")
 
+    print("\n Note: the warning below appears everytime the code is ran and can be ignored.")
     df_local = pd.read_sql(query, ctx)
+
     df_local.set_index("INDICATOR_ID", inplace=True)
     
     return df_local
@@ -193,7 +193,7 @@ def ingest_ft_data(ctx, df, date_updated_local):
     #Get destination tables
     database = getenv("DATABASE") 
     schema = getenv("SCHEMA") 
-    destination_table = getenv("DESTINATION_TABLE_DATA")
+    destination_table = getenv("TABLE_DATA")
     destination = f"{database}.{schema}.{destination_table}"
 
     #Upload the new fingertips data
@@ -220,7 +220,7 @@ def update_meta_local(ctx, id, date_updated_local):
     #Get destination tables
     database = getenv("DATABASE") 
     schema = getenv("SCHEMA") 
-    destination_table = getenv("SOURCE_TABLE_LOCAL_META")
+    destination_table = getenv("TABLE_LOCAL_META")
     destination = f"{database}.{schema}.{destination_table}"
 
     #Update existing entries
@@ -256,6 +256,8 @@ def main():
 
     #Get live meta data
     df_meta = ftp.get_metadata_for_all_indicators_from_csv()
+    df_area = pd.DataFrame.from_dict(
+        ftp.get_all_areas(), orient='index').reset_index(names="AREA_ID")
 
     #Establish Snowflake connection
     ctx = connect(
@@ -272,9 +274,16 @@ def main():
     df_meta["Date updated"] = pd.to_datetime(
         df_meta["Date updated"], format="%d/%m/%Y").dt.date
 
-    #Replace existing live meta table reference
-    print()
-    update_meta_live(ctx, df_meta)
+    #Replace existing live meta table references
+    print("\nProcessing latest metadata:")
+    
+    print("Indicator Metadata...")
+    update_meta_live(ctx, df_meta, 
+                     destination_table=getenv("TABLE_META_INDICATOR"))
+    
+    print("Area Metadata...")
+    update_meta_live(ctx, df_area,
+                     destination_table=getenv("TABLE_META_AREA"))
 
     #Filter indicators to only ones with new data
     target_ids = check_for_updates(ctx, indicator_ids, df_meta)
