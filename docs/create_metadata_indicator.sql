@@ -1,0 +1,37 @@
+-- Create table to store fingertip indicator metadata
+-- Contact: jake.kealey@nhs.net
+
+CREATE OR REPLACE TABLE DATA_LAKE__NCL.CANCER__FINGERTIPS.METADATA_INDICATOR (
+    "Indicator ID" NUMBER,
+    "Indicator" VARCHAR,
+    "Indicator number" VARCHAR,
+    "Rationale" VARCHAR,
+    "Specific rationale" VARCHAR,
+    "Definition" VARCHAR,
+    "Data source" VARCHAR,
+    "Indicator source" VARCHAR,
+    "Definition of numerator" VARCHAR,
+    "Source of numerator" VARCHAR,
+    "Definition of denominator" VARCHAR,
+    "Source of denominator" VARCHAR,
+    "Methodology" VARCHAR,
+    "Standard population/values" VARCHAR,
+    "Frequency" VARCHAR,
+    "Confidence interval details" VARCHAR,
+    "Disclosure control" VARCHAR,
+    "Rounding" VARCHAR,
+    "Caveats" VARCHAR,
+    "Notes" VARCHAR,
+    "Impact of COVID-19" VARCHAR,
+    "Copyright" VARCHAR,
+    "Data re-use" VARCHAR,
+    "Links" VARCHAR,
+    "Indicator Content" VARCHAR,
+    "Simple Name" VARCHAR,
+    "Simple Definition" VARCHAR,
+    "Unit" VARCHAR,
+    "Value type" VARCHAR,
+    "Year type" VARCHAR,
+    "Polarity" VARCHAR,
+    "Date updated" DATE    
+);
