@@ -13,6 +13,19 @@ The output indicator data is also appended with the "Date updated" field from th
 
 The INDICATOR_METADATA table is sourced using the `fingertips_py.get_metadata_for_all_indicators_from_csv()` function.
 
+### Code Overview
+```mermaid
+flowchart LR
+    A(Start) --> B[Get metadata for Indicators and Area Types via the API]
+    B --> C[Update Snowflake Metadata tables]
+    C --> D[Check which Indicators have new data: 'target_id's]
+    D --> E((For each target_id))
+    E --> F[Download the Indicator data via the API]
+    F --> G[Upload the Indicator data]
+    G --> |If there are remaining target_ids| E
+    G --> |All target_id's processed| Z(End)
+```
+
 ## Scripting Guidance
 
 Please refer to the Internal Scripting Guide documentation for instructions on setting up coding projects including virtual environments (venv) and environmental variables (.env).
@@ -33,7 +46,7 @@ The Internal Scripting Guide is available here: [Internal Scripting Guide](https
 
 * Execute src/main.py
 
-When executed the code will fully refresh the INDICATOR_METADATA table with the latest available.
+When executed the code will fully refresh the METADATA_INDICATOR and METADATA_AREA tables with the latest available definitions.
 
 ## Changelog
 
