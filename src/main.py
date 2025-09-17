@@ -160,7 +160,7 @@ def check_for_updates(ctx, ids, df_meta):
     #Combine the live and local metadata
     df_meta_scope = df_meta_scope.join(df_local_meta, on="INDICATOR_ID")
     
-    #Calculate 
+    #Calculate if the data online (live) is more recent than what is locally available
     df_meta_scope["NEW_DATA"] = (
         (
             df_meta_scope["DATE_UPDATED_LIVE"] > 
@@ -312,4 +312,5 @@ def main():
 
     ctx.close()
 
+#Main parent function for the update process
 main()
