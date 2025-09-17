@@ -1,7 +1,7 @@
 -- Create table to store fingertip indicator metadata
 -- Contact: jake.kealey@nhs.net
 
-CREATE OR REPLACE TABLE DATA_LAKE__NCL.CANCER__FINGERTIPS.METADATA_INDICATOR (
+CREATE OR REPLACE TABLE DATA_LAKE__NCL.FINGERTIPS.METADATA_INDICATOR (
     "Indicator ID" NUMBER,
     "Indicator" VARCHAR,
     "Indicator number" VARCHAR,

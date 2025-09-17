@@ -1,7 +1,7 @@
 -- Create table to store fingertips data for select cancer metrics
 -- Contact: jake.kealey@nhs.net
 
-CREATE OR REPLACE TABLE DATA_LAKE__NCL.CANCER__FINGERTIPS.CANCER_FINGERTIPS (
+CREATE OR REPLACE TABLE DATA_LAKE__NCL.FINGERTIPS.CANCER_FINGERTIPS (
     "Indicator ID" NUMBER,
     "Indicator Name" VARCHAR,
     "Parent Code" VARCHAR,
