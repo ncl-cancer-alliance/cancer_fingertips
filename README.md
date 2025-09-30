@@ -54,6 +54,10 @@ When executed the code will fully refresh the METADATA_INDICATOR and METADATA_AR
 #### Added
 - Initial working version of the project.
 
+### [1.1.0] - 2025-09-30
+#### Modified
+- Changed API download code to pull data per area iteratively instead of all at once to prevent failure due to excessive data downloading.
+
 ## Licence
 This repository is dual licensed under the [Open Government v3]([https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/) & MIT. All code can outputs are subject to Crown Copyright.
 

@@ -295,20 +295,47 @@ def main():
     for id in target_ids:
         print(f"\nProcessing {id}")
 
-        #Get data for the target indicator
-        df_id = ftp.get_data_for_indicator_at_all_available_geographies(id)
+        #This code is the ftp function get_data_for_indicator_at_all_available_geographies(id)
+        #Extracted into this code so failsafes can be added to reduce error proness
 
-        #Get the update date
-        date_updated_local = (
-            df_meta[df_meta["Indicator ID"] == id]["Date updated"].values[0])
-        
-        #Ingest that data (and update local metadata)
-        success = ingest_ft_data(ctx, df_id, date_updated_local)
-        
-        #Update the local meta table if successful
-        if success:
-            print("Updating local metadata")
-            update_meta_local(ctx, id, date_updated_local)
+        all_area_for_all_indicators = ftp.get_all_areas_for_all_indicators()
+        areas_to_get = all_area_for_all_indicators.get(id)
+        df_id = pd.DataFrame()
+
+        for area in areas_to_get:
+            ##Custom code to add failsafe to ftp code
+            success_area = True
+            
+            try:
+                df_temp = ftp.get_data_by_indicator_ids(id, area)
+            except:
+                print(f"Download failed for id {id} and area {area}. Retrying (2/2).")
+                try:
+                    df_temp = ftp.get_data_by_indicator_ids(id, area)
+                except:
+                    print("Download failed again. Data for this area will be skipped.")
+                    success_area = False
+
+            if success_area:
+                df_id = pd.concat([df_id, df_temp])
+
+        df_id.drop_duplicates(inplace=True)
+
+        if not df_id.empty:
+            #Get the update date
+            date_updated_local = (
+                df_meta[df_meta["Indicator ID"] == id]["Date updated"].values[0])
+            
+            #Ingest that data (and update local metadata)
+            success = ingest_ft_data(ctx, df_id, date_updated_local)
+            
+            #Update the local meta table if successful
+            if success:
+                print("Updating local metadata")
+                update_meta_local(ctx, id, date_updated_local)
+
+        else:
+            print(f"No data found for id {id}.")
 
     ctx.close()
 
