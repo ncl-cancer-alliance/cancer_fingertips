@@ -1,6 +1,7 @@
 #Imports
 import ast
 import fingertips_py as ftp
+import numpy as np
 import pandas as pd
 
 from snowflake.connector import connect
@@ -252,7 +253,7 @@ def update_meta_local(ctx, id, date_updated_local):
 def main():
 
     #Get indicator IDs to process
-    indicator_ids = ast.literal_eval(getenv("INDICATORS"))
+    indicator_ids = np.loadtxt(getenv("INDICATOR_FILENAME"), delimiter=',', skiprows=1, dtype=int)
 
     #Get live meta data
     df_meta = ftp.get_metadata_for_all_indicators_from_csv()
