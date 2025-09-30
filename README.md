@@ -42,7 +42,7 @@ The Internal Scripting Guide is available here: [Internal Scripting Guide](https
 
 ### Regular Use
 
-* Set the INDICATORS field in the .env file to the list of indicators you want to pull data for. If all destination tables are set up as expected, the code will only pull data for indicators where there is new data not currently logged in the INDICATOR_UPDATE_LOG.
+* Add the desired indicator ids to the target_indicators.csv field in the root directory. If all destination tables are set up as expected, the code will only pull data for indicators where there is new data not currently logged in the INDICATOR_UPDATE_LOG. If you want to only pull data for a subset of indicators you can specify a custom indicator csv file in the .env file.
 
 * Execute src/main.py
 
@@ -53,6 +53,11 @@ When executed the code will fully refresh the METADATA_INDICATOR and METADATA_AR
 ### [1.0.0] - 2025-08-01
 #### Added
 - Initial working version of the project.
+
+### [1.1.0] - 2025-09-30
+#### Modified
+- Changed API download code to pull data per area iteratively instead of all at once to prevent failure due to excessive data downloading.
+- Indicator IDs are set in the target_indicator.csv file
 
 ## Licence
 This repository is dual licensed under the [Open Government v3]([https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/) & MIT. All code can outputs are subject to Crown Copyright.
