@@ -279,6 +279,7 @@ def main():
     print("\nProcessing latest metadata:")
     
     print("Indicator Metadata...")
+
     update_meta_live(ctx, df_meta, 
                      destination_table=getenv("TABLE_META_INDICATOR"))
     
