@@ -279,6 +279,7 @@ def main():
     print("\nProcessing latest metadata:")
     
     print("Indicator Metadata...")
+
     update_meta_live(ctx, df_meta, 
                      destination_table=getenv("TABLE_META_INDICATOR"))
     
@@ -318,6 +319,7 @@ def main():
                     success_area = False
 
             if success_area:
+                df_temp["AREA_ID"] = area
                 df_id = pd.concat([df_id, df_temp])
 
         df_id.drop_duplicates(inplace=True)
@@ -328,12 +330,7 @@ def main():
                 df_meta[df_meta["Indicator ID"] == id]["Date updated"].values[0])
             
             #Ingest that data (and update local metadata)
-            success = ingest_ft_data(ctx, df_id, date_updated_local)
-            
-            #Update the local meta table if successful
-            if success:
-                print("Updating local metadata")
-                update_meta_local(ctx, id, date_updated_local)
+            ingest_ft_data(ctx, df_id, date_updated_local)
 
         else:
             print(f"No data found for id {id}.")
