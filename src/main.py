@@ -201,50 +201,37 @@ def ingest_ft_data(ctx, df, date_updated_local):
     success = upload_df(ctx, df, destination, replace=False)
     return success
 
-def update_meta_local(ctx, id, date_updated_local):
+def log_error(ctx, indicator_id, area_id):
 
     """
-    Code to maintain a local metadata table tracking what indicator data has
-    been ingested. Needed to detect whether the latest data online is more
-    recent that what is already ingested.
-
-    This function also marks newly inserted data as "IS_LATEST" and unmarks
-    existing entries for this indicator as not "IS_LATEST"
+    Code to maintain a local table tracking indicator + area combinations that fail to ingest on multiple attempts.
+    Such entries will attempt to be uploaded on future executions.
 
     inputs:
     - ctx: Snowflake connection object 
     (https://docs.snowflake.com/en/developer-guide/python-connector/python-connector-connect)
-    - id: Indicator ID
-    - date_updated_local: "Date updated" value for the given Indicator
+    - indicator_id: Indicator ID
+    - area_id: Area Type ID
     """
 
     #Get destination tables
     database = getenv("DATABASE") 
     schema = getenv("SCHEMA") 
-    destination_table = getenv("TABLE_LOCAL_META")
+    destination_table = getenv("TABLE_INGESTION_ERROR_LOG")
     destination = f"{database}.{schema}.{destination_table}"
-
-    #Update existing entries
-    alter_query = f"""
-    UPDATE {destination} 
-    SET IS_LATEST = False 
-    WHERE INDICATOR_ID = {id};
-    """
 
     #Insert new row
     insert_query = f"""
-    INSERT INTO {destination} (INDICATOR_ID, DATE_UPDATED_LOCAL, IS_LATEST)
-    VALUES ({id}, '{date_updated_local}', True)
+    INSERT INTO {destination} (INDICATOR_ID, AREA_ID)
+    VALUES ({indicator_id}, {area_id})
     """
 
     cur = ctx.cursor()
 
     try:
-        cur.execute(alter_query)
         cur.execute(insert_query)
     except Exception as e:
         print("SQL failed with this message:", e)
-        #Needed to undo editing existing data as not IS_LATEST if upload fails
         cur.execute("ROLLBACK") 
 
     finally:
@@ -316,6 +303,7 @@ def main():
                     df_temp = ftp.get_data_by_indicator_ids(id, area)
                 except:
                     print("Download failed again. Data for this area will be skipped.")
+                    log_error(ctx, id, area)
                     success_area = False
 
             if success_area:
