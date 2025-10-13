@@ -307,6 +307,11 @@ def main():
                     success_area = False
 
             if success_area:
+
+                #Remove duplicated England data
+                if area != 15:
+                    df_temp = df_temp[df_temp["Area Code"] != "E92000001"]
+
                 df_temp["AREA_ID"] = area
                 df_id = pd.concat([df_id, df_temp])
 
