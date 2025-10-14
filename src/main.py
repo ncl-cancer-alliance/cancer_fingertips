@@ -289,7 +289,6 @@ def get_target_pairs(ctx, df_meta,
 
     return target_pairs
 
-
 def ingest_ft_data(ctx, df, date_updated_local):
     """
     Function to ingest a fingertips dataframe.
@@ -445,4 +444,4 @@ def main(limit=False):
     ctx.close()
 
 #Main parent function for the update process
-main(limit=200)
+main()
