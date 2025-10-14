@@ -126,7 +126,63 @@ def get_local_meta(ctx):
     
     return df_local
 
-def check_for_updates(ctx, ids, df_meta):
+def get_area_mismatch(ctx):
+    
+    """
+    Function to get indicator-area pairs with outdated area boundaries.
+
+    inputs:
+    - ctx: Snowflake connection object 
+    (https://docs.snowflake.com/en/developer-guide/python-connector/python-connector-connect)
+    output: Tuple pairs of indicator ids and area ids with outdated area boundaries.
+    """
+
+    query = f"""
+        SELECT INDICATOR_ID, AREA_ID 
+        FROM {getenv("TABLE_AREA_MISMATCH")}
+    """
+
+    df_am = pd.read_sql(query, ctx)
+    list_am = df_am.values.tolist()
+    
+    return [(x, y) for [x,y] in list_am]
+
+def get_ingestion_error(ctx):
+
+    """
+    Function to get indicator-area pairs with unresolved entries in the 
+    ingestion error log.
+
+    inputs:
+    - ctx: Snowflake connection object 
+    (https://docs.snowflake.com/en/developer-guide/python-connector/python-connector-connect)
+    output: Tuple pairs of indicator ids and area ids with previous unresolved 
+    ingestion errors.
+    """
+
+    #Query to get unresolved ingestion errors
+    query = f"""
+        SELECT DISTINCT iel.INDICATOR_ID, iel.AREA_ID 
+        FROM DATA_LAKE__NCL.FINGERTIPS.{getenv("TABLE_INGESTION_ERROR_LOG")} iel
+
+        --Join to indicator data to compare if the data was updated after the error was raised
+        LEFT JOIN (
+            SELECT "Indicator ID", AREA_ID, MAX(_TIMESTAMP) AS _TIMESTAMP
+            FROM DATA_LAKE__NCL.FINGERTIPS.{getenv("TABLE_DATA")}
+            GROUP BY "Indicator ID", AREA_ID
+        ) fin
+        ON iel.INDICATOR_ID = fin."Indicator ID"
+        AND iel.AREA_ID = fin.AREA_ID
+
+        WHERE iel._TIMESTAMP >= fin._TIMESTAMP
+    """
+
+    df_ie = pd.read_sql(query, ctx)
+    list_ie = df_ie.values.tolist()
+    
+    return [(x, y) for [x,y] in list_ie]
+
+def check_for_updates(ctx, df_meta, ids=[]):
     """
     For given indicators, compare the online "Date updated" with the local 
     (most recent) "Date updated" values to determine which indicators have new 
@@ -135,14 +191,19 @@ def check_for_updates(ctx, ids, df_meta):
     inputs:
     - ctx: Snowflake connection object 
     (https://docs.snowflake.com/en/developer-guide/python-connector/python-connector-connect)
-    - ids: List of indicators to consider
     - df_meta: Dataframe object 
     (sourced using fingertips_py.get_metadata_for_all_indicators_from_csv(),
     I made this a function input instead of pulling the data in the function to 
     avoid pulling it multiple times in the code since it's used elsewhere)
+    - ids: List of indicators to consider. If this is not provider, the code 
+    will use all active ids from the df_meta object.
 
     output: List of indicators with new data available
     """
+
+    #Process the ids input
+    if ids == []:
+        ids = list(df_meta["Indicator ID"])
 
     #Get local metadata
     df_local_meta = get_local_meta(ctx)
@@ -175,6 +236,59 @@ def check_for_updates(ctx, ids, df_meta):
     ids_to_update = df_meta_scope["INDICATOR_ID"][df_meta_scope["NEW_DATA"] == True].to_list()
 
     return ids_to_update
+
+def get_target_pairs(ctx, df_meta, 
+                     flag_ui=True, flag_am=True, flag_ie=True):
+
+    """
+    Using the three criterias:
+    - Updated Indicators: Newer data exists via the API than is locally stored 
+      in Snowflake
+    - Area Mismatch: Existing data are using outdated boundaries
+      (i.e. PCN Groupings)
+    - Ingestion Error: Previous attempts at ingesting data failed
+    Determine a list of Indicator ID and Area ID pairs to be pulled and ingested
+    via the API.
+
+    inputs:
+    - ctx: Snowflake connection object 
+    (https://docs.snowflake.com/en/developer-guide/python-connector/python-connector-connect)
+    - df_meta: Dataframe object 
+    (sourced using fingertips_py.get_metadata_for_all_indicators_from_csv(),
+    I made this a function input instead of pulling the data in the function to 
+    avoid pulling it multiple times in the code since it's used elsewhere)
+    - flag variables that selects which criterias to consider when fetching 
+      target pairs
+
+    output: List of Indicator-Area pairs
+    """
+
+    target_pairs = []
+
+    if flag_ui:
+        #Get list of updated indicators
+        updated_indicators = check_for_updates(ctx, df_meta)
+
+        all_area_for_all_indicators = ftp.get_all_areas_for_all_indicators()
+        
+        #Expand list of updated indicators
+        for indicator in updated_indicators:
+            areas_to_get = all_area_for_all_indicators.get(indicator)
+            indicator_pairs = [(indicator, x) for x in areas_to_get]
+            target_pairs += indicator_pairs
+
+    if flag_am:
+        #Get target paris from area mismatches
+        area_mismatch_pairs = get_area_mismatch(ctx)
+        target_pairs += area_mismatch_pairs
+
+    if flag_ie:
+        #Get target pairs from ingestion errors
+        ingestion_error_pairs = get_ingestion_error(ctx)
+        target_pairs += ingestion_error_pairs
+
+    return target_pairs
+
 
 def ingest_ft_data(ctx, df, date_updated_local):
     """
@@ -237,10 +351,7 @@ def log_error(ctx, indicator_id, area_id):
     finally:
         cur.close()
 
-def main():
-
-    #Get indicator IDs to process
-    indicator_ids = np.loadtxt(getenv("INDICATOR_FILENAME"), delimiter=',', skiprows=1, dtype=int)
+def main(limit=False):
 
     #Get live meta data
     df_meta = ftp.get_metadata_for_all_indicators_from_csv()
@@ -275,60 +386,63 @@ def main():
                      destination_table=getenv("TABLE_META_AREA"))
 
     #Filter indicators to only ones with new data
-    target_ids = check_for_updates(ctx, indicator_ids, df_meta)
+    target_pairs = get_target_pairs(ctx, df_meta, 
+                                    flag_ui=True, flag_am=True, flag_ie=True)
 
-    if target_ids == []:
+    if limit and int(limit) < len(target_pairs):
+        limit_indicator = target_pairs[limit][0]
+        target_pairs = [x for idx, x in enumerate(target_pairs) 
+                        if (idx < limit) or (x[0]==limit_indicator)]
+
+    if target_pairs == []:
         print("\nNo new indicator data found")
 
     #Handle each indicator indivdually
-    for id in target_ids:
-        print(f"\nProcessing {id}")
+    for idx, pair in enumerate(target_pairs):
 
-        #This code is the ftp function get_data_for_indicator_at_all_available_geographies(id)
-        #Extracted into this code so failsafes can be added to reduce error proness
-
-        all_area_for_all_indicators = ftp.get_all_areas_for_all_indicators()
-        areas_to_get = all_area_for_all_indicators.get(id)
         df_id = pd.DataFrame()
 
-        for area in areas_to_get:
-            ##Custom code to add failsafe to ftp code
-            success_area = True
-            
+        indicator_id = pair[0]
+        area_id = pair[1]
+
+        print(f"\n{idx} Processing: Indicator - {indicator_id}, Area - {area_id}")
+
+        ##Custom code to add failsafe to ftp code
+        success_area = True
+        
+        try:
+            df_id = ftp.get_data_by_indicator_ids(indicator_id, area_id)
+        except:
+            print(f"Download failed for id {indicator_id} and area {area_id}. Retrying (2/2).")
             try:
-                df_temp = ftp.get_data_by_indicator_ids(id, area)
+                df_id = ftp.get_data_by_indicator_ids(indicator_id, area_id)
             except:
-                print(f"Download failed for id {id} and area {area}. Retrying (2/2).")
-                try:
-                    df_temp = ftp.get_data_by_indicator_ids(id, area)
-                except:
-                    print("Download failed again. Data for this area will be skipped.")
-                    log_error(ctx, id, area)
-                    success_area = False
+                print("Download failed again. Data for this area will be skipped.")
+                log_error(ctx, indicator_id, area_id)
+                success_area = False
 
-            if success_area:
+        if success_area:
 
-                #Remove duplicated England data
-                if area != 15:
-                    df_temp = df_temp[df_temp["Area Code"] != "E92000001"]
+            #Remove duplicated England data
+            if area_id != 15:
+                df_id = df_id[df_id["Area Code"] != "E92000001"]
 
-                df_temp["AREA_ID"] = area
-                df_id = pd.concat([df_id, df_temp])
+            df_id["AREA_ID"] = area_id
 
         df_id.drop_duplicates(inplace=True)
 
         if not df_id.empty:
             #Get the update date
             date_updated_local = (
-                df_meta[df_meta["Indicator ID"] == id]["Date updated"].values[0])
+                df_meta[df_meta["Indicator ID"] == indicator_id]["Date updated"].values[0])
             
             #Ingest that data (and update local metadata)
             ingest_ft_data(ctx, df_id, date_updated_local)
 
         else:
-            print(f"No data found for id {id}.")
+            print(f"No data found for Indicator ID {indicator_id} and Area ID {area_id}.")
 
     ctx.close()
 
 #Main parent function for the update process
-main()
+main(limit=200)
