@@ -287,6 +287,9 @@ def get_target_pairs(ctx, df_meta,
         ingestion_error_pairs = get_ingestion_error(ctx)
         target_pairs += ingestion_error_pairs
 
+    #Remove duplicate entries from the list
+    target_pairs = list(set(target_pairs))
+
     return target_pairs
 
 def ingest_ft_data(ctx, df, date_updated_local):
