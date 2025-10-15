@@ -289,6 +289,7 @@ def get_target_pairs(ctx, df_meta,
 
     #Remove duplicate entries from the list
     target_pairs = list(set(target_pairs))
+    target_pairs.sort()
 
     return target_pairs
 
