@@ -2,28 +2,43 @@
 
 Ingestion pipeline to pull select fingertips data into snowflake.
 
-The pipeline maintains 3 bronze tier tables:
-- CANCER_FINGERTIPS: Indicator data
-- INDICATOR_METADATA: Metadata information on indicators
+The pipeline maintains the following DATA_LAKE__NCL.FINGERTIPS tables:
+- INDICATOR_DATA: Indicator data
+- INGESTION_ERROR_LOG: Log of indicators that fail to ingest when the code is run
+- METADATA_AREA: Metadata information on areas
+- METADATA_INDICATOR: Metadata information on indicators
+
+In the Snowflake environment the following views are also included in DATA_LAKE__NCL.FINGERTIPS:
+- INDICATOR_AREA_MISMATCH: Highlights instances of indicator data using outdated boundaries (i.e. PCN groupings)
 - INDICATOR_UPDATE_LOG: Local tracking of what data has been ingested
 
-This project uses the [fingertips-py package](https://fingertips-py.readthedocs.io/en/latest/) to pull data and outputs data in the format used by `fingertips_py.get_data_for_indicator_at_all_available_geographies(id)`.
+This project uses the [fingertips-py package](https://fingertips-py.readthedocs.io/en/latest/) to pull data and outputs data in the format output by `fingertips_py.get_data_by_indicator_ids(indicator_id, area_id)`.
 
-The output indicator data is also appended with the "Date updated" field from the indicator metadata in order to track what version of the data exists in Snowflake.
+The output indicator data is also appended with the AREA_ID used when requesting the data and the "Date updated" field from the indicator metadata in order to track what version of the data exists in Snowflake.
 
-The INDICATOR_METADATA table is sourced using the `fingertips_py.get_metadata_for_all_indicators_from_csv()` function.
+The METADATA_INDICATOR table is sourced using the `fingertips_py.get_metadata_for_all_indicators_from_csv()` function.
+The METADATA_AREA table is sourced using the `fingertips_py.get_all_areas()` function.
+
+When the code is executed, only "new" data is processed. There are **three criterias** for the code considering data to be "new":
+- The "Date updated" field for a given indicator in the Indicator metadata from the API is more recent than what is available in the Snowflake data
+- For a given Area ID, the Area Type Name is different in the Area metadata from the API compared to what is used in the latest data in Snowflake. (This happens for some Area IDs with changing boundaries like PCNs. The Area Type in the Snowflake data might be "PCNs (v. 26/06/25)" while the Area Type in the metadata is "PCNs (v.28/07/2025)" implying the data currently online was recalculated with the newer boundary definition.)
+- There are rows in the INGESTION_ERROR_LOG table with a _TIMESTAMP value more recent than the data in the INDICATOR_DATA table. This implies there was an ingestion error when the code was previous ran but the new data is still not in the data table.
 
 ### Code Overview
 ```mermaid
-flowchart LR
-    A(Start) --> B[Get metadata for Indicators and Area Types via the API]
-    B --> C[Update Snowflake Metadata tables]
-    C --> D[Check which Indicators have new data: 'target_id's]
-    D --> E((For each target_id))
-    E --> F[Download the Indicator data via the API]
-    F --> G[Upload the Indicator data]
-    G --> |If there are remaining target_ids| E
-    G --> |All target_id's processed| Z(End)
+flowchart TB
+    A(Start) --> B[Update Snowflake Metadata tables for indicators and area types]
+    B --> C[Apply the three criteria for ingesting data:]
+    C --> C0([Indicators with new data online])
+    C --> C1([Area types in the latest data that are outdated])
+    C --> C2([Previous ingestion errors not yet to resolved])
+    C0 --> D[[For each indicator and area pair:]]
+    C1 --> D
+    C2 --> D
+    D --> E[Download the indicator data for the given area via the API]
+    E --> F[Upload the data to Snowflake]
+    F --> |If there are remaining indicator and area pairs| D
+    F --> |All data processed| Z(End)
 ```
 
 ## Scripting Guidance
@@ -34,6 +49,8 @@ The Internal Scripting Guide is available here: [Internal Scripting Guide](https
 
 ## Usage
 
+**Note that running this code requires access to the ENGINEER role**
+
 ### First Time Setup
 
 * Follow the guide for "Setting up a New Coding Project" in the [Internal Scripting Guide](https://nhs.sharepoint.com/:w:/r/sites/msteams_38dd8f/Shared%20Documents/Document%20Library/Documents/Git%20Integration/Internal%20Scripting%20Guide.docx?d=wc124f806fcd8401b8d8e051ce9daab87&csf=1&web=1&e=qt05xI) and set up the Virtual Environment.
@@ -41,8 +58,6 @@ The Internal Scripting Guide is available here: [Internal Scripting Guide](https
 * Create a .env file using the sample.env as a reference. Use the Internal Scripting Guide for further guidance. The ACCOUNT, USER, and ROLE fields need to be populated using information from your Snowflake account.
 
 ### Regular Use
-
-* Add the desired indicator ids to the target_indicators.csv field in the root directory. If all destination tables are set up as expected, the code will only pull data for indicators where there is new data not currently logged in the INDICATOR_UPDATE_LOG. If you want to only pull data for a subset of indicators you can specify a custom indicator csv file in the .env file.
 
 * Execute src/main.py
 
@@ -58,6 +73,12 @@ When executed the code will fully refresh the METADATA_INDICATOR and METADATA_AR
 #### Modified
 - Changed API download code to pull data per area iteratively instead of all at once to prevent failure due to excessive data downloading.
 - Indicator IDs are set in the target_indicator.csv file
+
+### [1.2.0] - 2025-10-15
+#### Modified
+- Instead of a trimmed list of relevant indicators, the code now maintains all available indicators. The target_indicator.csv is now redundant and removed.
+- AREA_ID was added to the ingested data due to issues with joining on "Area Type". Specifically issues with the Area Type in the data not aligning to the Area Type in the meta table when boundaries change (i.e. PCN)
+- Instead of just looking for updated metrics there are now the three criteria for updating data as documented above.
 
 ## Licence
 This repository is dual licensed under the [Open Government v3]([https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/) & MIT. All code can outputs are subject to Crown Copyright.
