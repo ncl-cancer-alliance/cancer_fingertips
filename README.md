@@ -28,16 +28,25 @@ When the code is executed, only "new" data is processed. There are **three crite
 ```mermaid
 flowchart TB
     A(Start) --> B[Update Snowflake Metadata tables for indicators and area types]
-    B --> C[Apply the three criteria for ingesting data:]
-    C --> C0([Indicators with new data online])
-    C --> C1([Area types in the latest data that are outdated])
-    C --> C2([Previous ingestion errors not yet to resolved])
-    C0 --> D[[For each indicator and area pair:]]
+    B --> C[Apply the three criteria for
+    ingesting data:]
+    C --> C0([Indicators with new data 
+    online])
+    C --> C1([Area types in the latest 
+    data that are outdated])
+    C --> C2([Previous ingestion errors 
+    not yet to resolved])
+    C0 --> D[[For each indicator and area 
+    pair:]]
     C1 --> D
     C2 --> D
-    D --> E[Download the indicator data for the given area via the API]
-    E --> F[Upload the data to Snowflake]
-    F --> |If there are remaining indicator and area pairs| D
+    D --> E[Download the 
+    indicator data for the given 
+    area via the API]
+    E --> F[Upload the data to 
+    Snowflake]
+    F --> |If there are remaining 
+    indicator and area pairs| D
     F --> |All data processed| Z(End)
 ```
 
