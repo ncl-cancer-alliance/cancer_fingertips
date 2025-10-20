@@ -117,7 +117,11 @@ def get_local_meta(ctx):
     output: Dataframe containing local metadata on ingested data
     """
 
-    query = load_query("get_indicator_update_log.sql")
+    query = f"""
+        SELECT INDICATOR_ID, DATE_UPDATED_LOCAL
+        FROM {getenv("TABLE_UPDATE_LOG")}
+        WHERE IS_LATEST = TRUE
+    """
 
     print("\n Note: the warning below appears everytime the code is ran and can be ignored.")
     df_local = pd.read_sql(query, ctx)
