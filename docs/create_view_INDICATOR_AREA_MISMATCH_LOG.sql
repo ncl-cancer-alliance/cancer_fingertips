@@ -3,7 +3,7 @@ create or replace view DATA_LAKE__NCL.FINGERTIPS.INDICATOR_AREA_MISMATCH_LOG(
 	AREA_ID,
 	AREA_TYPE_DATA,
 	AREA_TYPE_META
-) COMMENT='Flags indicators where the area boundaries are not up to date (typically PCN groups).\nContact: jake.kealey@nhs.net'
+) COMMENT='Flags indicators where the area boundaries are not up to date (typically PCN groups).\nIdeally this table is empty.\nContact: jake.kealey@nhs.net'
  as
 
 SELECT DISTINCT 

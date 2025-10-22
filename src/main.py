@@ -40,8 +40,6 @@ def upload_df(ctx, df, destination, replace=False):
     success = False
 
     try:
-        if replace:
-            cur.execute(f"TRUNCATE TABLE {destination}")
 
         # Upload DataFrame
         success, nchunks, nrows, _ = write_pandas(
@@ -50,7 +48,7 @@ def upload_df(ctx, df, destination, replace=False):
             table_name=destination_segs[2],
             schema=destination_segs[1],
             database=destination_segs[0],
-            overwrite=False
+            overwrite=replace
         )
 
         if not success:
@@ -59,7 +57,6 @@ def upload_df(ctx, df, destination, replace=False):
         print(f"Uploaded {nrows} rows to {destination}")
     except Exception as e:
         print("Data ingestion failed with error:", e)
-        cur.execute("ROLLBACK") #Undoes truncation on upload error
 
     finally:
         cur.close()
