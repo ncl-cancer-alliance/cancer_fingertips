@@ -34,4 +34,4 @@ AND fin.AREA_ID = latest.AREA_ID
 AND fin._TIMESTAMP = latest._TIMESTAMP
 
 GROUP BY fin."Indicator ID", fin.AREA_ID, fin."Area Type", fin.DATE_UPDATED_LOCAL, latest._TIMESTAMP
-ORDER BY latest._TIMESTAMP DESC;
+ORDER BY IS_LATEST DESC, latest._TIMESTAMP DESC;
